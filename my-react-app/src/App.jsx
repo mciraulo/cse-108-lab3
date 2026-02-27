@@ -10,10 +10,21 @@ function App() {
   const [activeOp, setActiveOp] = useState(null)
   const [firstNum, setFirstNum] = useState(null)
   const [waitingForSecond, setWaitingForSecond] = useState(false)
+  const [lastOp, setLastOp] = useState(null)   
+  const [lastNum, setLastNum] = useState(null)  
+
+  const calculate = (a, op, b) => {
+    a = parseFloat(a)
+    b = parseFloat(b)
+    if (op === '/') return a / b
+    if (op === 'x') return a * b
+    if (op === '-') return a - b
+    if (op === '+') return a + b
+  }
 
   const handleNum = (val) => {
     if (waitingForSecond) {
-      setDisplay(val)
+      setDisplay(val === '.' ? '0.' : val)
       setWaitingForSecond(false)
     } else {
       setDisplay(display === '' && val === '.' ? '0.' : display + val)
@@ -23,21 +34,30 @@ function App() {
   const handleOp = (op) => {
     if (op === '=') {
       if (firstNum !== null && activeOp) {
-        const a = parseFloat(firstNum)
-        const b = parseFloat(display)
-        let result
-        if (activeOp === '/') result = a / b
-        else if (activeOp === 'x') result = a * b
-        else if (activeOp === '-') result = a - b
-        else if (activeOp === '+') result = a + b
+        const second = display
+        const result = calculate(firstNum, activeOp, second)
         setDisplay(String(result))
+        setLastOp(activeOp)
+        setLastNum(second) 
         setFirstNum(null)
         setActiveOp(null)
         setWaitingForSecond(false)
+      } else if (lastOp !== null && lastNum !== null) {
+        const result = calculate(display, lastOp, lastNum)
+        setDisplay(String(result))
       }
     } else {
-      setFirstNum(display)
+      if (firstNum !== null && !waitingForSecond) {
+        const result = calculate(firstNum, activeOp, display)
+        const resultStr = String(result)
+        setDisplay(resultStr)
+        setFirstNum(resultStr)
+      } else {
+        setFirstNum(display)
+      }
       setActiveOp(op)
+      setLastOp(null)  
+      setLastNum(null)
       setWaitingForSecond(true)
     }
   }
@@ -47,6 +67,8 @@ function App() {
     setFirstNum(null)
     setActiveOp(null)
     setWaitingForSecond(false)
+    setLastOp(null)
+    setLastNum(null)
   }
 
   return (

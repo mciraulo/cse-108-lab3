@@ -1,13 +1,236 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>my-react-app</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculator</title>
+  <style>
+    :root {
+      font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      font-weight: 400;
+      color-scheme: light dark;
+      color: rgba(255, 255, 255, 0.87);
+      background-color: #242424;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      margin: 0;
+      display: flex;
+      place-items: center;
+      justify-content: center;
+      min-width: 320px;
+      min-height: 100vh;
+    }
+
+    button {
+      border-radius: 8px;
+      border: 1px solid transparent;
+      padding: 0.6em 1.2em;
+      font-size: 1em;
+      font-weight: 500;
+      font-family: inherit;
+      background-color: #1a1a1a;
+      cursor: pointer;
+      transition: border-color 0.25s;
+    }
+
+    button:hover { border-color: #646cff; }
+    button:focus,
+    button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
+
+    @media (prefers-color-scheme: light) {
+      :root { color: #213547; background-color: #ffffff; }
+      a:hover { color: #747bff; }
+      button { background-color: #f9f9f9; }
+    }
+
+    /* Calculator layout */
+    #calculator {
+      background-color: #1e1e2e;
+      border: 1px solid #444;
+      border-radius: 12px;
+      padding: 20px;
+      display: grid;
+      gap: 10px;
+      width: 260px;
+    }
+
+    #display {
+      grid-column: span 4;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      font-size: 1.4em;
+      text-align: right;
+      background-color: #111;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 8px;
+    }
+
+    .btn-grid {
+      grid-column: span 4;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    /* Button colors */
+    .num {
+      background-color: #537099;
+      color: white;
+    }
+
+    .operate {
+      background-color: #498c65;
+      color: white;
+    }
+
+    .operate.active {
+      background-color: #daaf6a;
+      color: white;
+      border-color: #fff;
+    }
+
+    .clear {
+      background-color: #a25b53;
+      color: white;
+      grid-column: span 4;
+    }
+
+    button:hover { border-color: #646cff; }
+  </style>
+</head>
+<body>
+  <div id="calculator">
+    <input id="display" type="text" readonly />
+    <div class="btn-grid">
+      <button class="num" onclick="handleNum('7')">7</button>
+      <button class="num" onclick="handleNum('8')">8</button>
+      <button class="num" onclick="handleNum('9')">9</button>
+      <button class="operate" id="op-/" onclick="handleOp('/')">÷</button>
+
+      <button class="num" onclick="handleNum('4')">4</button>
+      <button class="num" onclick="handleNum('5')">5</button>
+      <button class="num" onclick="handleNum('6')">6</button>
+      <button class="operate" id="op-x" onclick="handleOp('x')">×</button>
+
+      <button class="num" onclick="handleNum('1')">1</button>
+      <button class="num" onclick="handleNum('2')">2</button>
+      <button class="num" onclick="handleNum('3')">3</button>
+      <button class="operate" id="op--" onclick="handleOp('-')">−</button>
+
+      <button class="num" onclick="handleNum('0')">0</button>
+      <button class="num" onclick="handleNum('.')">.</button>
+      <button class="operate" id="op-=" onclick="handleOp('=')">=</button>
+      <button class="operate" id="op-+" onclick="handleOp('+')">+</button>
+    </div>
+    <button class="clear" onclick="handleClear()">C</button>
+  </div>
+
+  <script>
+    let display = '';
+    let activeOp = null;
+    let firstNum = null;
+    let waitingForSecond = false;
+    let lastOp = null;
+    let lastNum = null;
+
+    const displayEl = document.getElementById('display');
+
+    function updateDisplay(val) {
+      display = val;
+      displayEl.value = display;
+    }
+
+    function setActiveOp(op) {
+      // Clear all highlights
+      document.querySelectorAll('.operate').forEach(btn => btn.classList.remove('active'));
+      activeOp = op;
+      // Highlight the active operator (not = )
+      if (op && op !== '=') {
+        const btn = document.getElementById('op-' + op);
+        if (btn) btn.classList.add('active');
+      }
+    }
+
+    function clearHighlight() {
+      document.querySelectorAll('.operate').forEach(btn => btn.classList.remove('active'));
+      activeOp = null;
+    }
+
+    function calculate(a, op, b) {
+      a = parseFloat(a);
+      b = parseFloat(b);
+      if (op === '/') return a / b;
+      if (op === 'x') return a * b;
+      if (op === '-') return a - b;
+      if (op === '+') return a + b;
+    }
+
+    function handleNum(val) {
+      // Decimal can only be used once per number
+      if (val === '.' && display.includes('.') && !waitingForSecond) return;
+
+      if (waitingForSecond) {
+        updateDisplay(val === '.' ? '0.' : val);
+        waitingForSecond = false;
+        // Per requirements: clear highlight when new number input begins
+        // (highlight stays while waitingForSecond, clears once they start typing)
+        // We keep the highlight until they actually type, so remove it now
+        document.querySelectorAll('.operate').forEach(btn => btn.classList.remove('active'));
+        // But activeOp stays set so the operation still works
+      } else {
+        updateDisplay(display === '' && val === '.' ? '0.' : display + val);
+      }
+    }
+
+    function handleOp(op) {
+      if (op === '=') {
+        if (firstNum !== null && activeOp) {
+          const second = display;
+          const result = calculate(firstNum, activeOp, second);
+          updateDisplay(String(result));
+          lastOp = activeOp;
+          lastNum = second;
+          firstNum = null;
+          clearHighlight();
+          waitingForSecond = false;
+        } else if (lastOp !== null && lastNum !== null) {
+          const result = calculate(display, lastOp, lastNum);
+          updateDisplay(String(result));
+          // lastOp and lastNum persist for further repeats
+        }
+      } else {
+        if (firstNum !== null && !waitingForSecond) {
+          // Chained operation: resolve current first, then set new op
+          const result = calculate(firstNum, activeOp, display);
+          const resultStr = String(result);
+          updateDisplay(resultStr);
+          firstNum = resultStr;
+        } else {
+          firstNum = display;
+        }
+        setActiveOp(op);
+        lastOp = null;
+        lastNum = null;
+        waitingForSecond = true;
+      }
+    }
+
+    function handleClear() {
+      updateDisplay('');
+      firstNum = null;
+      lastOp = null;
+      lastNum = null;
+      waitingForSecond = false;
+      clearHighlight();
+    }
+  </script>
+</body>
 </html>
